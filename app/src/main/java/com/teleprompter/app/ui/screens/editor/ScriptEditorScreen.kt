@@ -41,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
@@ -57,6 +58,7 @@ fun ScriptEditorScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
     val overlayManager = remember { TeleprompterOverlayManager() }
 
     LaunchedEffect(scriptId) {
@@ -184,7 +186,7 @@ fun ScriptEditorScreen(
             OutlinedButton(
                 onClick = {
                     viewModel.saveNow()
-                    uiState.script?.let { overlayManager.startOverlay(it) }
+                    uiState.script?.let { overlayManager.startOverlay(context, it) }
                 },
                 modifier = Modifier
                     .fillMaxWidth()

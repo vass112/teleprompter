@@ -42,13 +42,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,11 +57,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.teleprompter.app.data.db.ScriptEntity
-import com.teleprompter.app.service.TeleprompterOverlayManager
 import com.teleprompter.app.ui.components.ScriptCard
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -77,11 +77,8 @@ fun ScriptListScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showSearch by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     val overlayManager = remember { TeleprompterOverlayManager() }
-
-    LaunchedEffect(Unit) {
-        TeleprompterOverlayManager.init()
-    }
 
     Scaffold(
         topBar = {
@@ -158,7 +155,7 @@ fun ScriptListScreen(
                         ScriptCard(
                             script = script,
                             onClick = { onNavigateToEditor(script.id) },
-                            onPlay = { overlayManager.startOverlay(script) },
+                            onPlay = { overlayManager.startOverlay(context, script) },
                             onDelete = { viewModel.onDeleteScript(script) },
                             onDuplicate = { viewModel.onDuplicateScript(script) },
                             onToggleFavorite = { viewModel.onToggleFavorite(script) },
