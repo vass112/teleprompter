@@ -62,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.teleprompter.app.data.db.ScriptEntity
+import com.teleprompter.app.service.TeleprompterOverlayManager
 import com.teleprompter.app.ui.components.ScriptCard
 import java.text.SimpleDateFormat
 import java.util.Date
