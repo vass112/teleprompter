@@ -1,0 +1,3 @@
+-keepattributes *Annotation*
+-keep class com.teleprompter.app.data.db.** { *; }
+-keep class dagger.hilt.** { *; }
