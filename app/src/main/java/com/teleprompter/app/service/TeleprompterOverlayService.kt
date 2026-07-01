@@ -8,14 +8,18 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
-import androidx.compose.ui.graphics.toArgb
+import android.widget.ImageButton
+import android.widget.ScrollView
+import android.widget.TextView
 import androidx.core.app.NotificationCompat
 import com.teleprompter.app.R
 import com.teleprompter.app.data.db.ScriptEntity
@@ -25,15 +29,30 @@ import dagger.hilt.android.AndroidEntryPoint
 class TeleprompterOverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
-    private lateinit var overlayView: FrameLayout
+    private var overlayView: FrameLayout? = null
     private var overlayParams: WindowManager.LayoutParams? = null
 
+    private var isPlaying = false
     private var isMinimized = false
     private var isLocked = false
+    private var currentPosition = 0f
+    private var scrollSpeed = 1.0f
+    private var scriptContent = ""
+
     private var initialX = 0
     private var initialY = 0
     private var initialTouchX = 0f
     private var initialTouchY = 0f
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val scrollRunnable = object : Runnable {
+        override fun run() {
+            if (isPlaying) {
+                scrollOverlay()
+                mainHandler.postDelayed(this, 16)
+            }
+        }
+    }
 
     companion object {
         const val CHANNEL_ID = "teleprompter_overlay_channel"
@@ -48,7 +67,6 @@ class TeleprompterOverlayService : Service() {
         private var isRunning = false
 
         fun isOverlayRunning(): Boolean = isRunning
-
         fun getCurrentScript(): ScriptEntity? = currentScript
 
         fun start(context: Context, script: ScriptEntity) {
@@ -88,8 +106,14 @@ class TeleprompterOverlayService : Service() {
             ACTION_START -> {
                 val title = intent.getStringExtra(EXTRA_SCRIPT_TITLE) ?: "Script"
                 val content = intent.getStringExtra(EXTRA_SCRIPT_CONTENT) ?: ""
-                showOverlay(title, content)
-                startForeground(NOTIFICATION_ID, createNotification(title))
+                scriptContent = content
+                try {
+                    startForeground(NOTIFICATION_ID, createNotification(title))
+                    showOverlay(title, content)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    stopSelf()
+                }
             }
             ACTION_STOP -> {
                 stopOverlay()
@@ -103,28 +127,47 @@ class TeleprompterOverlayService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun showOverlay(title: String, content: String) {
-        if (::overlayView.isInitialized && overlayView.isAttachedToWindow) return
+        if (overlayView?.isAttachedToWindow == true) return
 
-        overlayView = FrameLayout(this).apply {
-            setBackgroundColor(android.graphics.Color.parseColor("#CC0D0E10"))
+        val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        val rootView = inflater.inflate(R.layout.overlay_teleprompter, null) as FrameLayout
 
-            val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
-            val teleprompterView = inflater.inflate(R.layout.overlay_teleprompter, this, true)
+        val scriptText = rootView.findViewById<TextView>(R.id.script_text)
+        scriptText.text = content.ifEmpty { "Your script will appear here..." }
 
-            findViewById<View>(R.id.overlay_root)?.let { root ->
-                root.setOnTouchListener { _, event -> handleTouch(event) }
-            }
+        val scrollContainer = rootView.findViewById<ScrollView>(R.id.scroll_container)
+
+        val playPauseBtn = rootView.findViewById<ImageButton>(R.id.btn_play_pause)
+        val stopBtn = rootView.findViewById<ImageButton>(R.id.btn_stop)
+        val minimizeBtn = rootView.findViewById<ImageButton>(R.id.btn_minimize)
+
+        playPauseBtn.setOnClickListener {
+            togglePlayPause()
+            updatePlayPauseButton(playPauseBtn)
         }
 
-        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-        } else {
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        stopBtn.setOnClickListener {
+            isPlaying = false
+            mainHandler.removeCallbacks(scrollRunnable)
+            scrollContainer.scrollTo(0, 0)
+            currentPosition = 0f
+            updatePlayPauseButton(playPauseBtn)
         }
+
+        minimizeBtn.setOnClickListener {
+            stopOverlay()
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+
+        rootView.setOnTouchListener { _, event ->
+            if (isLocked) return@setOnTouchListener true
+            handleTouch(event)
+        }
+
+        val flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
 
         overlayParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -142,10 +185,52 @@ class TeleprompterOverlayService : Service() {
         }
 
         try {
-            windowManager.addView(overlayView, overlayParams)
+            windowManager.addView(rootView, overlayParams)
+            overlayView = rootView
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+            stopSelf()
         } catch (e: Exception) {
+            e.printStackTrace()
             stopSelf()
         }
+    }
+
+    private fun togglePlayPause() {
+        isPlaying = !isPlaying
+        if (isPlaying) {
+            mainHandler.post(scrollRunnable)
+        } else {
+            mainHandler.removeCallbacks(scrollRunnable)
+        }
+    }
+
+    private fun updatePlayPauseButton(button: ImageButton) {
+        button.setImageResource(
+            if (isPlaying) android.R.drawable.ic_media_pause
+            else android.R.drawable.ic_media_play
+        )
+    }
+
+    private fun scrollOverlay() {
+        val view = overlayView ?: return
+        val scrollContainer = view.findViewById<ScrollView>(R.id.scroll_container) ?: return
+        val scriptText = view.findViewById<TextView>(R.id.script_text) ?: return
+
+        val totalScroll = scriptText.height - scrollContainer.height
+        if (totalScroll <= 0) return
+
+        currentPosition += scrollSpeed * 2f
+        if (currentPosition >= totalScroll) {
+            currentPosition = totalScroll.toFloat()
+            isPlaying = false
+            mainHandler.removeCallbacks(scrollRunnable)
+            view.findViewById<ImageButton>(R.id.btn_play_pause)?.let {
+                updatePlayPauseButton(it)
+            }
+        }
+
+        scrollContainer.scrollTo(0, currentPosition.toInt())
     }
 
     private fun handleTouch(event: MotionEvent): Boolean {
@@ -161,20 +246,25 @@ class TeleprompterOverlayService : Service() {
             MotionEvent.ACTION_MOVE -> {
                 params.x = initialX + (event.rawX - initialTouchX).toInt()
                 params.y = initialY + (event.rawY - initialTouchY).toInt()
-                windowManager.updateViewLayout(overlayView, params)
+                try {
+                    windowManager.updateViewLayout(overlayView, params)
+                } catch (_: Exception) {}
             }
         }
         return true
     }
 
     private fun stopOverlay() {
+        mainHandler.removeCallbacks(scrollRunnable)
+        isPlaying = false
         try {
-            if (::overlayView.isInitialized && overlayView.isAttachedToWindow) {
-                windowManager.removeView(overlayView)
+            overlayView?.let { view ->
+                if (view.isAttachedToWindow) {
+                    windowManager.removeView(view)
+                }
             }
-        } catch (e: Exception) {
-            // View may already be detached
-        }
+        } catch (_: Exception) {}
+        overlayView = null
     }
 
     private fun createNotificationChannel() {

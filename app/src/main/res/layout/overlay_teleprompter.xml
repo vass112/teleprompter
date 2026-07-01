@@ -3,6 +3,8 @@
     android:id="@+id/overlay_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:clickable="true"
+    android:focusable="true"
     android:clipChildren="false"
     android:clipToPadding="false">
 
@@ -14,8 +16,10 @@
         android:layout_marginTop="8dp"
         android:ellipsize="end"
         android:maxLines="1"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="4dp"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="4dp"
+        android:paddingBottom="4dp"
         android:textColor="@android:color/white"
         android:textSize="12sp"
         android:visibility="gone" />
@@ -24,35 +28,40 @@
         android:id="@+id/scroll_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginHorizontal="16dp"
-        android:layout_marginVertical="24dp"
-        android:scrollbars="none">
+        android:layout_marginLeft="16dp"
+        android:layout_marginRight="16dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="60dp"
+        android:scrollbars="vertical"
+        android:fadeScrollbars="true">
 
         <TextView
             android:id="@+id/script_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:lineSpacingExtra="8dp"
             android:textColor="@android:color/white"
-            android:textSize="18sp" />
+            android:textSize="18sp"
+            android:lineSpacingExtra="8dp" />
 
     </ScrollView>
 
     <LinearLayout
         android:id="@+id/controls_layout"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|center_horizontal"
         android:layout_marginBottom="12dp"
+        android:layout_marginLeft="48dp"
+        android:layout_marginRight="48dp"
         android:background="@drawable/controls_background"
         android:orientation="horizontal"
-        android:padding="6dp"
-        android:visibility="visible">
+        android:gravity="center"
+        android:padding="6dp">
 
         <ImageButton
             android:id="@+id/btn_play_pause"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:scaleType="centerInside"
             android:src="@android:drawable/ic_media_play"
@@ -60,18 +69,17 @@
 
         <ImageButton
             android:id="@+id/btn_stop"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:scaleType="centerInside"
             android:src="@android:drawable/ic_media_pause"
-            android:tint="@android:color/white"
-            android:visibility="gone" />
+            android:tint="@android:color/white" />
 
         <ImageButton
             android:id="@+id/btn_minimize"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:scaleType="centerInside"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
